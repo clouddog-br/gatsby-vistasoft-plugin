@@ -1,5 +1,5 @@
 {
-  "name": "gatsby-starter-plugin",
+  "name": "gatsby-vistasoft-plugin",
   "version": "1.0.0",
   "description": "A minimal boilerplate for the essential files Gatsby looks for in a plugin",
   "main": "index.js",
@@ -12,5 +12,9 @@
     "gatsby-plugin"
   ],
   "author": "Kyle Gill <kyle.robert.gill@gmail.com>",
-  "license": "0BSD"
+  "license": "0BSD",
+  "dependencies": {
+    "axios": "^0.19.2",
+    "slugify": "^1.4.4"
+  }
 }
