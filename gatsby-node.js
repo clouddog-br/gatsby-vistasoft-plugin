@@ -22,7 +22,7 @@ async function createImoveis(actions, createContentDigest, createNodeId, pluginO
          'InfraEstrutura', 'DataHoraAtualizacao'],
       paginacao: {
          pagina: pagina === undefined ? 1 : pagina,
-         quantidade: 1
+         quantidade: 50
       }
    }
 
@@ -39,15 +39,9 @@ async function createImoveis(actions, createContentDigest, createNodeId, pluginO
          await createImoveis(actions, createContentDigest, createNodeId, pluginOptions, pagina+1)
       }
    } catch(error) {
-      // if (typeof error === 'object') {
-      //    console.log('error', error.response.data.message)
-      // } else {
-         console.log('error', error)
-      // }
-      
+      console.log('error', error)
       throw error
    }
-   
 }
 
 async function createImoveisNode(actions, createContentDigest, createNodeId, pluginOptions, data) {
@@ -56,28 +50,28 @@ async function createImoveisNode(actions, createContentDigest, createNodeId, plu
    .map(key => {
       let imovel = data[key]
       if (typeof imovel === 'object') {
-         imovel.Slug = slugify(imovel.Empreendimento, { lower: true})
-         imovel.ValorDiaria = (imovel.ValorDiaria === '') ? undefined : Number(imovel.ValorDiaria)
-         imovel.ValorDiariaPadrao = (imovel.ValorDiariaPadrao === '') ? undefined : Number(imovel.ValorDiariaPadrao)
-         imovel.ValorVenda = (imovel.ValorVenda === '') ? undefined : Number(imovel.ValorVenda)
-         imovel.ValorVendaPadrao = (imovel.ValorVendaPadrao === '') ? undefined : Number(imovel.ValorVendaPadrao)
-         imovel.ValorLocacao = (imovel.ValorLocacao === '') ? undefined : Number(imovel.ValorLocacao)
-         imovel.ValorLocacaoPadrao = (imovel.ValorLocacaoPadrao === '') ? undefined : Number(imovel.ValorLocacaoPadrao)
-         imovel.MoedaIndice = (imovel.MoedaIndice === '') ? undefined : Number(imovel.MoedaIndice)
-         imovel.Latitude = (imovel.Latitude === '') ? undefined : Number(imovel.Latitude)
-         imovel.Longitude = (imovel.Longitude === '') ? undefined : Number(imovel.Longitude)
-         imovel.ValorCondominio = (imovel.ValorCondominio === '') ? undefined : Number(imovel.ValorCondominio)
-         imovel.ValorIptu = (imovel.ValorIptu === '') ? undefined : Number(imovel.ValorIptu)
-         return imovel
+         return {
+            ...imovel,
+            Slug: slugify(imovel.Empreendimento, { lower: true}),
+            ValorDiaria: (imovel.ValorDiaria === '') ? undefined : Number(imovel.ValorDiaria),
+            ValorDiariaPadrao: (imovel.ValorDiariaPadrao === '') ? undefined : Number(imovel.ValorDiariaPadrao),
+            ValorVenda: (imovel.ValorVenda === '') ? undefined : Number(imovel.ValorVenda),
+            ValorVendaPadrao: (imovel.ValorVendaPadrao === '') ? undefined : Number(imovel.ValorVendaPadrao),
+            ValorLocacao: (imovel.ValorLocacao === '') ? undefined : Number(imovel.ValorLocacao),
+            ValorLocacaoPadrao: (imovel.ValorLocacaoPadrao === '') ? undefined : Number(imovel.ValorLocacaoPadrao),
+            MoedaIndice: (imovel.MoedaIndice === '') ? undefined : Number(imovel.MoedaIndice),
+            Latitude: (imovel.Latitude === '') ? undefined : Number(imovel.Latitude),
+            Longitude: (imovel.Longitude === '') ? undefined : Number(imovel.Longitude),
+            ValorCondominio: (imovel.ValorCondominio === '') ? undefined : Number(imovel.ValorCondominio),
+            ValorIptu: (imovel.ValorIptu === '') ? undefined : Number(imovel.ValorIptu),
+         }
       }
    }) 
    .filter(el => el !== undefined)        
-   .forEach(imovel => {
-      //console.log("creating node for: "+ imovel.Codigo);
-      imovelId = createNodeId(`${VISTA_IMOVEL_NODE_TYPE}-${imovel.Codigo}`);
+   .forEach(async imovel => {
       createNode({
       ...imovel,
-      id: imovelId,
+      id: createNodeId(`${VISTA_IMOVEL_NODE_TYPE}-${imovel.Codigo}`),
       parent: null,
       children: [],
          internal: {
@@ -87,12 +81,12 @@ async function createImoveisNode(actions, createContentDigest, createNodeId, plu
          },
       })
 
-      createImovelDetalhe(actions, createContentDigest, createNodeId, pluginOptions, imovelId, imovel.Codigo)
+      await createImovelDetalhe(actions, createContentDigest, createNodeId, pluginOptions, imovel.Codigo)
    })
 }
 
-async function createImovelDetalhe(actions, createContentDigest, createNodeId, pluginOptions, imovelId, imovel) {
-   console.log(`processando imovel detalhe: ${imovelId}`)
+async function createImovelDetalhe(actions, createContentDigest, createNodeId, pluginOptions, imovelCodigo) {
+   console.log(`processando imovel detalhe: ${imovelCodigo}`)
    
    let pesquisa = {
       fields: ['Codigo', 
@@ -101,37 +95,36 @@ async function createImovelDetalhe(actions, createContentDigest, createNodeId, p
    }
 
    try {
-      let response = await axios.get(`${pluginOptions.url}/imoveis/detalhes?key=${pluginOptions.key}&imovel=${imovel}&pesquisa=${JSON.stringify(pesquisa)}`,
+      let response = await axios.get(`${pluginOptions.url}/imoveis/detalhes?key=${pluginOptions.key}&imovel=${imovelCodigo}&pesquisa=${JSON.stringify(pesquisa)}`,
       {
          headers: {
             "accept": "application/json"
          }
       })
-      createFotoNode(actions, createContentDigest, createNodeId, imovelId, response.data)
+      createFotoNode(actions, createContentDigest, createNodeId, imovelCodigo, response.data)      
    } catch (error) {
       console.log("detalhe error", error)
+      throw error
    }
-   
-   
 }
 
-function createFotoNode(actions, createContentDigest, createNodeId, imovelId, data) {
-   console.log(`createFotoNode imovelId: ${imovelId}`, data)
+function createFotoNode(actions, createContentDigest, createNodeId, imovelCodigo, data) {
+   process.stdout.write(`processando imovel: ${imovelCodigo} - fotos: `);
    const { createNode } = actions
-   const imovel = data.Codigo
    Object.keys(data.Foto)
    .map(key => {
-      let foto = data.Foto[key]
-      foto.Codigo = key
-      foto.ImovelId = imovelId
-      return foto
+      return {
+         ...data.Foto[key],
+         Codigo: key,
+         ImovelCodigo: imovelCodigo
+      }
    })   
    .forEach(foto => {
-      console.log("creating node for: ", foto);
+      process.stdout.write('.');
       createNode({
       ...foto,
       id: createNodeId(`${VISTA_FOTO_NODE_TYPE}-${foto.Codigo}`),
-      parent: imovelId,
+      parent: null,
       children: [],
       internal: {
          type: VISTA_FOTO_NODE_TYPE,
@@ -140,6 +133,7 @@ function createFotoNode(actions, createContentDigest, createNodeId, imovelId, da
       },
       })
    })
+   process.stdout.write(`\n`);
 }
 
 async function createAgencias(actions, createContentDigest, createNodeId, pluginOptions, pagina) {
@@ -171,16 +165,16 @@ function createAgenciasNode(actions, createContentDigest, createNodeId, data) {
    const { createNode } = actions
    Object.keys(data)
    .map(key => {
-      let agencia = data[key]
+      const agencia = data[key]
       if (typeof agencia === 'object') {
-         agencia.Slug = slugify(agencia.Nome, { lower: true})
-         agencia.E_Mail 
-         return agencia
+         return {
+            ...agencia,
+            Slug:  slugify(agencia.Nome, { lower: true})
+         }        
       }
    }) 
    .filter(el => el !== undefined)        
    .forEach(agencia => {
-      //console.log("creating node for: "+ imovel.Codigo);
       createNode({
       ...agencia,
       id: createNodeId(`${VISTA_AGENCIA_NODE_TYPE}-${agencia.Codigo}`),
@@ -201,7 +195,7 @@ exports.sourceNodes = async ({
   createNodeId,
   getNodesByType,
 }, pluginOptions) => {
-   console.log("initializing",pluginOptions)
+   console.log("initializing gatsby-vistasoft-plugin")
 
    if (pluginOptions.url === undefined) {
       throw Error("precisa definir a 'url' no plugin da vistasoft")
@@ -209,6 +203,10 @@ exports.sourceNodes = async ({
    if (pluginOptions.key === undefined) {
       throw Error("precisa definir a 'key' no plugin da vistasoft")
    }
+
+   console.log(`vista key: ${pluginOptions.key}`)
+   console.log(`vista url: ${pluginOptions.url}`)
+   
    await createImoveis(actions, createContentDigest, createNodeId, pluginOptions);
    await createAgencias(actions, createContentDigest, createNodeId, pluginOptions);
 }
@@ -261,11 +259,10 @@ exports.createSchemaCustomization = ({ actions }) => {
          ValorDiaria: Int
          ValorDiariaPadrao: Int
          MoedaIndice: Int
-         Foto: VistaFoto @link(from: "vistaFoto.ImovelId" by: "id")
      }
      type VistaFoto implements Node {
          Codigo: ID!
-         ImovelId: String
+         ImovelCodigo: String
          FotoPequena: String
          Foto: String
          Destaque: String
