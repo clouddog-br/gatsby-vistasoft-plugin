@@ -19,3 +19,12 @@ Depois adicione a configuração do plugin em gatsby-config.js
 # Desenvolvimento
 
 Para desenvolvimento incluimos um parâmetro:
+  plugins: [
+    {
+      resolve: "gatsby-vistasoft-plugin",
+      options: {
+        key: "######",
+        url: "http://######.vistahost.com.br",
+        develop: true
+      }
+    }
