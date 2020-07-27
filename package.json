@@ -1,6 +1,6 @@
 {
   "name": "gatsby-vistasoft-plugin",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Plugin de Source para obter dados de imoveis no CRM da VistaSoft",
   "main": "index.js",
   "scripts": {
