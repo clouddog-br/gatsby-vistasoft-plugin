@@ -12,7 +12,7 @@
     "gatsby-plugin",
     "vistasoft"
   ],
-  "url" : "https://github.com/clouddog-br/gatsby-vistasoft-plugin/issues",
+  "url": "https://github.com/clouddog-br/gatsby-vistasoft-plugin/issues",
   "author": "Alessandro Oliveira <alessandro.oliveira@clouddog.com.br>",
   "license": "BSD-3-Clause",
   "dependencies": {
