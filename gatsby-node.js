@@ -123,7 +123,7 @@ function createFotoNode(actions, createContentDigest, createNodeId, imovelCodigo
       process.stdout.write('.');
       createNode({
       ...foto,
-      id: createNodeId(`${VISTA_FOTO_NODE_TYPE}-${foto.Codigo}`),
+      id: createNodeId(`${VISTA_FOTO_NODE_TYPE}-${imovelCodigo}-${foto.Codigo}`),
       parent: null,
       children: [],
       internal: {
