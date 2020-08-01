@@ -12,7 +12,7 @@ const axios = require('axios')
 async function createImoveis(config, pluginOptions, pagina) {
 
    pagina = pagina === undefined ? 1 : pagina
-   console.log(`processando imoveis: ${pagina}`)
+   config.reporter.info(`processando imoveis: ${pagina}`)
 
    let pesquisa = {
       fields: ["Codigo", "Empreendimento", 'BairroComercial', 'Categoria',  'Status', 
@@ -42,7 +42,7 @@ async function createImoveis(config, pluginOptions, pagina) {
          await createImoveis(config, pluginOptions, pagina+1)
       }
    } catch(error) {
-      console.log('error', error)
+      config.reporter.error('error creating imoveis', error)
       throw error
    }
 }
@@ -91,7 +91,7 @@ async function createImoveisNode(config, pluginOptions, data) {
 }
 
 async function createImovelDetalhe(config, pluginOptions, imovelCodigo) {
-   console.log(`processando imovel detalhe: ${imovelCodigo}`)
+   config.reporter.verbose(`processando imovel detalhe: ${imovelCodigo}`)
    
    let pesquisa = {
       fields: ['Codigo', 
@@ -108,7 +108,7 @@ async function createImovelDetalhe(config, pluginOptions, imovelCodigo) {
       })
       createFotoNode(config, imovelCodigo, response.data)      
    } catch (error) {
-      console.log("detalhe error", error)
+      config.reporter.error(`error processing imovel detalhe for ${imovelCodigo}`, error)
       throw error
    }
 }
@@ -145,7 +145,7 @@ function createFotoNode(config, imovelCodigo, data) {
 
 async function createAgencias(config, pluginOptions, pagina) {
    pagina = pagina === undefined ? 1 : pagina
-   console.log(`processando agencia: ${pagina}`)
+   config.reporter.info(`processando agencia: ${pagina}`)
    
    let pesquisa = {
       fields: ['CodigoEmpresa','Codigo', 'Nome', 'RazaoSocial', 'Cnpj', 'Uf', 'Cidade', 'Bairro', 'Endereco', 'Complemento', 'Numero', 'Ddd', 'Fone', 'E-mail', 'Creci','Cep', 'Fone2', 'Celular'],
@@ -199,7 +199,7 @@ async function createAgenciasNode(config, data) {
 }
 
 exports.sourceNodes = async (config, pluginOptions) => {
-   console.log("initializing gatsby-vistasoft-plugin")
+   config.reporter.verbose("initializing gatsby-vistasoft-plugin")
 
    if (pluginOptions.url === undefined) {
       throw Error("precisa definir a 'url' no plugin da vistasoft")
@@ -208,8 +208,8 @@ exports.sourceNodes = async (config, pluginOptions) => {
       throw Error("precisa definir a 'key' no plugin da vistasoft")
    }
 
-   console.log(`vista key: ${pluginOptions.key}`)
-   console.log(`vista url: ${pluginOptions.url}`)
+   config.reporter.info(`vista key: ${pluginOptions.key}`)
+   config.reporter.info(`vista url: ${pluginOptions.url}`)
    
    await createImoveis(config, pluginOptions);
    await createAgencias(config, pluginOptions);
@@ -217,16 +217,17 @@ exports.sourceNodes = async (config, pluginOptions) => {
 
 exports.onCreateNode = async ({
    actions: { createNode },
+   reporter,
    getCache,
    createNodeId,
    node,
  }) => {
-    console.log(`creating node '${node.internal.type}' `)
+   //  console.log(`creating node '${node.internal.type}' `)
    // because onCreateNode is called for all nodes, verify that you are only running this code on nodes created by your plugin
    if (node.internal.type === VISTA_IMOVEL_NODE_TYPE) {
-      console.log(`creating node imovel ${node.internal.type} `)
+      reporter.verbose(`creating node imovel ${node.internal.type} `)
      // create a FileNode in Gatsby that gatsby-transformer-sharp will create optimized images for
-      const fileNode = await createRemoteFileNode({
+      const fileDestaque = await createRemoteFileNode({
          // the url of the remote image to generate a node for
          url: node.FotoDestaque,
          getCache,
@@ -234,8 +235,36 @@ exports.onCreateNode = async ({
          createNodeId,
          parentNodeId: node.id,
       })
+      if (fileDestaque) {
+         node.FotoDestaque = fileDestaque.id
+      }
+      if (node.FotoDestaqueEmpreendimento) {
+         const fileDestaqueEmpreendimento = await createRemoteFileNode({
+            // the url of the remote image to generate a node for
+            url: node.FotoDestaqueEmpreendimento,
+            getCache,
+            createNode,
+            createNodeId,
+            parentNodeId: node.id,
+         })
+         if (fileDestaqueEmpreendimento) {
+            node.FotoDestaqueEmpreendimento = fileDestaqueEmpreendimento.id
+         }
+      }
+   }
+   if (node.internal.type === VISTA_FOTO_NODE_TYPE) {
+      reporter.verbose(`creating node foto ${node.internal.type} `)
+     // create a FileNode in Gatsby that gatsby-transformer-sharp will create optimized images for
+      const fileNode = await createRemoteFileNode({
+         // the url of the remote image to generate a node for
+         url: node.Foto,
+         getCache,
+         createNode,
+         createNodeId,
+         parentNodeId: node.id,
+      })
       if (fileNode) {
-         node.FotoDestaqueImage = fileNode.id
+         node.Foto = fileNode.id
       }
    }
  }
@@ -257,11 +286,8 @@ exports.createSchemaCustomization = ({ actions }) => {
          Bairro: String
          BairroComercial: String
          Dormitorios: String 
-         FotoDestaque: String
-         FotoDestaqueImage: File @link
-         FotoDestaquePequena: String
-         FotoDestaqueEmpreendimento: String
-         FotoDestaqueEmpreendimentoPequena: String
+         FotoDestaque: File @link
+         FotoDestaqueEmpreendimento: File @link
          DescricaoEmpreendimento: String
          TituloSite: String
          Construtora: String
@@ -293,8 +319,7 @@ exports.createSchemaCustomization = ({ actions }) => {
      type VistaFoto implements Node {
          Codigo: ID!
          ImovelCodigo: String
-         FotoPequena: String
-         Foto: String
+         Foto: File @link
          Destaque: String
          Tipo: String
          Descricao: String
