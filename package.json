@@ -17,6 +17,7 @@
   "license": "BSD-3-Clause",
   "dependencies": {
     "axios": "^0.19.2",
+    "gatsby-source-filesystem": "^2.3.23",
     "slugify": "^1.4.4"
   }
 }

@@ -1,3 +1,5 @@
+const { createRemoteFileNode } = require(`gatsby-source-filesystem`)
+
 exports.onPreInit = () => console.log("Loaded gatsby-vistasoft-plugin")
 
 const slugify = require('slugify')
@@ -7,7 +9,8 @@ const VISTA_FOTO_NODE_TYPE = `VistaFoto`
 
 const axios = require('axios')
 
-async function createImoveis(actions, createContentDigest, createNodeId, pluginOptions, pagina) {
+async function createImoveis(config, pluginOptions, pagina) {
+
    pagina = pagina === undefined ? 1 : pagina
    console.log(`processando imoveis: ${pagina}`)
 
@@ -33,10 +36,10 @@ async function createImoveis(actions, createContentDigest, createNodeId, pluginO
             "accept": "application/json"
          }
       })
-      await createImoveisNode(actions, createContentDigest, createNodeId, pluginOptions, response.data)
+      await createImoveisNode(config, pluginOptions, response.data)
       const { paginas } = response.data
       if (pagina < paginas && !pluginOptions.develop) {
-         await createImoveis(actions, createContentDigest, createNodeId, pluginOptions, pagina+1)
+         await createImoveis(config, pluginOptions, pagina+1)
       }
    } catch(error) {
       console.log('error', error)
@@ -44,8 +47,10 @@ async function createImoveis(actions, createContentDigest, createNodeId, pluginO
    }
 }
 
-async function createImoveisNode(actions, createContentDigest, createNodeId, pluginOptions, data) {
-   const { createNode } = actions
+async function createImoveisNode(config, pluginOptions, data) {
+   const { createNode } = config.actions
+   const { createNodeId, createContentDigest } = config
+   
    Object.keys(data)
    .map(key => {
       let imovel = data[key]
@@ -69,11 +74,11 @@ async function createImoveisNode(actions, createContentDigest, createNodeId, plu
    }) 
    .filter(el => el !== undefined)        
    .forEach(async imovel => {
-      createNode({
-      ...imovel,
-      id: createNodeId(`${VISTA_IMOVEL_NODE_TYPE}-${imovel.Codigo}`),
-      parent: null,
-      children: [],
+      await createNode({
+         ...imovel,
+         id: createNodeId(`${VISTA_IMOVEL_NODE_TYPE}-${imovel.Codigo}`),
+         parent: null,
+         children: [],
          internal: {
             type: VISTA_IMOVEL_NODE_TYPE,
             content: JSON.stringify(imovel),
@@ -81,11 +86,11 @@ async function createImoveisNode(actions, createContentDigest, createNodeId, plu
          },
       })
 
-      await createImovelDetalhe(actions, createContentDigest, createNodeId, pluginOptions, imovel.Codigo)
+      await createImovelDetalhe(config, pluginOptions, imovel.Codigo)
    })
 }
 
-async function createImovelDetalhe(actions, createContentDigest, createNodeId, pluginOptions, imovelCodigo) {
+async function createImovelDetalhe(config, pluginOptions, imovelCodigo) {
    console.log(`processando imovel detalhe: ${imovelCodigo}`)
    
    let pesquisa = {
@@ -101,16 +106,18 @@ async function createImovelDetalhe(actions, createContentDigest, createNodeId, p
             "accept": "application/json"
          }
       })
-      createFotoNode(actions, createContentDigest, createNodeId, imovelCodigo, response.data)      
+      createFotoNode(config, imovelCodigo, response.data)      
    } catch (error) {
       console.log("detalhe error", error)
       throw error
    }
 }
 
-function createFotoNode(actions, createContentDigest, createNodeId, imovelCodigo, data) {
+function createFotoNode(config, imovelCodigo, data) {
    process.stdout.write(`processando imovel: ${imovelCodigo} - fotos: `);
-   const { createNode } = actions
+   const { createNode } = config.actions
+   const { createNodeId, createContentDigest } = config
+   
    Object.keys(data.Foto)
    .map(key => {
       return {
@@ -119,24 +126,24 @@ function createFotoNode(actions, createContentDigest, createNodeId, imovelCodigo
          ImovelCodigo: imovelCodigo
       }
    })   
-   .forEach(foto => {
+   .forEach(async foto => {
       process.stdout.write('.');
-      createNode({
-      ...foto,
-      id: createNodeId(`${VISTA_FOTO_NODE_TYPE}-${imovelCodigo}-${foto.Codigo}`),
-      parent: null,
-      children: [],
-      internal: {
-         type: VISTA_FOTO_NODE_TYPE,
-         content: JSON.stringify(foto),
-         contentDigest: createContentDigest(foto),
-      },
+      await createNode({
+         ...foto,
+         id: createNodeId(`${VISTA_FOTO_NODE_TYPE}-${imovelCodigo}-${foto.Codigo}`),
+         parent: null,
+         children: [],
+         internal: {
+            type: VISTA_FOTO_NODE_TYPE,
+            content: JSON.stringify(foto),
+            contentDigest: createContentDigest(foto),
+         },
       })
    })
    process.stdout.write(`\n`);
 }
 
-async function createAgencias(actions, createContentDigest, createNodeId, pluginOptions, pagina) {
+async function createAgencias(config, pluginOptions, pagina) {
    pagina = pagina === undefined ? 1 : pagina
    console.log(`processando agencia: ${pagina}`)
    
@@ -154,15 +161,17 @@ async function createAgencias(actions, createContentDigest, createNodeId, plugin
          "accept": "application/json"
       }
    })
-   createAgenciasNode(actions, createContentDigest, createNodeId, response.data)
+   await createAgenciasNode(config, response.data)
    const { paginas } = response.data
    if (pagina < paginas && !pluginOptions.develop) {
-      await createAgencias(actions, createContentDigest, createNodeId, pluginOptions, pagina+1)
+      await createAgencias(config, pluginOptions, pagina+1)
    }
 }
 
-function createAgenciasNode(actions, createContentDigest, createNodeId, data) {
-   const { createNode } = actions
+async function createAgenciasNode(config, data) {
+   const { createNode } = config.actions
+   const { createNodeId, createContentDigest } = config
+
    Object.keys(data)
    .map(key => {
       const agencia = data[key]
@@ -174,27 +183,22 @@ function createAgenciasNode(actions, createContentDigest, createNodeId, data) {
       }
    }) 
    .filter(el => el !== undefined)        
-   .forEach(agencia => {
-      createNode({
-      ...agencia,
-      id: createNodeId(`${VISTA_AGENCIA_NODE_TYPE}-${agencia.Codigo}`),
-      parent: null,
-      children: [],
-      internal: {
-         type: VISTA_AGENCIA_NODE_TYPE,
-         content: JSON.stringify(agencia),
-         contentDigest: createContentDigest(agencia),
-      },
+   .forEach(async agencia => {
+      await createNode({
+         ...agencia,
+         id: createNodeId(`${VISTA_AGENCIA_NODE_TYPE}-${agencia.Codigo}`),
+         parent: null,
+         children: [],
+         internal: {
+            type: VISTA_AGENCIA_NODE_TYPE,
+            content: JSON.stringify(agencia),
+            contentDigest: createContentDigest(agencia),
+         },
       })
    })
 }
 
-exports.sourceNodes = async ({
-  actions,
-  createContentDigest,
-  createNodeId,
-  getNodesByType,
-}, pluginOptions) => {
+exports.sourceNodes = async (config, pluginOptions) => {
    console.log("initializing gatsby-vistasoft-plugin")
 
    if (pluginOptions.url === undefined) {
@@ -207,9 +211,34 @@ exports.sourceNodes = async ({
    console.log(`vista key: ${pluginOptions.key}`)
    console.log(`vista url: ${pluginOptions.url}`)
    
-   await createImoveis(actions, createContentDigest, createNodeId, pluginOptions);
-   await createAgencias(actions, createContentDigest, createNodeId, pluginOptions);
+   await createImoveis(config, pluginOptions);
+   await createAgencias(config, pluginOptions);
 }
+
+exports.onCreateNode = async ({
+   actions: { createNode },
+   getCache,
+   createNodeId,
+   node,
+ }) => {
+    console.log(`creating node '${node.internal.type}' `)
+   // because onCreateNode is called for all nodes, verify that you are only running this code on nodes created by your plugin
+   if (node.internal.type === VISTA_IMOVEL_NODE_TYPE) {
+      console.log(`creating node imovel ${node.internal.type} `)
+     // create a FileNode in Gatsby that gatsby-transformer-sharp will create optimized images for
+      const fileNode = await createRemoteFileNode({
+         // the url of the remote image to generate a node for
+         url: node.FotoDestaque,
+         getCache,
+         createNode,
+         createNodeId,
+         parentNodeId: node.id,
+      })
+      if (fileNode) {
+         node.FotoDestaqueImage = fileNode.id
+      }
+   }
+ }
 
 exports.createSchemaCustomization = ({ actions }) => {
    const { createTypes } = actions
@@ -229,6 +258,7 @@ exports.createSchemaCustomization = ({ actions }) => {
          BairroComercial: String
          Dormitorios: String 
          FotoDestaque: String
+         FotoDestaqueImage: File @link
          FotoDestaquePequena: String
          FotoDestaqueEmpreendimento: String
          FotoDestaqueEmpreendimentoPequena: String
